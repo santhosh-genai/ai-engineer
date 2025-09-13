@@ -1,0 +1,41 @@
+Steps to set it up (starting fresh)
+Go to the parent folder where you keep all subfolders (assignments in your case):
+local: cd C:\Desktop\Learning\assignments
+GitHub url:  https://github.com/santhosh-genai/ai-engineer.git
+
+ai-engineer/
+├── python/
+│   ├── script1.py
+│   ├── script2.py
+│   └── ...
+
+Initialize Git once here (root for all subfolders):
+git init
+git branch -M main
+git remote add origin https://github.com/santhosh-genai/ai-engineer.git
+
+
+Add just the python folder first:
+git add python
+git commit -m "Added python subfolder"
+git push -u origin main
+
+
+Later, when you create java or nodejs folders, just do:
+git add java nodejs
+git commit -m "Added java and nodejs subfolders"
+git push
+
+
+If you are already inside python folder:
+Remove-Item -Recurse -Force .git
+
+If you are one level above (inside assignments):
+Remove-Item -Recurse -Force python\.git
+
+Keep what’s already on GitHub + add your folder
+git pull origin main --rebase
+git push -u origin main
+
+Overwrite GitHub with your local repo
+git push -u origin main --force
