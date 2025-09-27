@@ -24,10 +24,14 @@ new_data = {'DefectID': ['D6', 'D7'],
             'Severity': ['Low', 'High'],
             'Status': ['Open', 'Closed']}
 df2 = pd.DataFrame(new_data)
-df2.to_csv('defects.csv', mode='a', index=True, header=False)
+df2.to_csv('defects.csv', mode='a', index=False, header=False)
 print(df2)
 print("\nNew DataFrame saved to 'defects.csv'")
 
 df1 = pd.read_csv('defects.csv')
 print("\nDataFrame read from 'defects.csv':")
 print(df1)
+
+df3 = pd.read_csv('defects.csv', usecols=['DefectID'])
+print("\nDataFrame with only 'DefectID' column:")
+print(df3)
