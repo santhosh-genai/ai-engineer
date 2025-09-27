@@ -1,0 +1,6 @@
+DefectID,Module,Severity,Status
+D6,Login,Low,Open
+D7,Payment,High,Closed
+DefectID,Module,Severity,Status
+D6,Login,Low,Open
+D7,Payment,High,Closed
