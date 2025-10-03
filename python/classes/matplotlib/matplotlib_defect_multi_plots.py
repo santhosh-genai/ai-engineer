@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 
-fig, axes = plt.subplots(2, 1 , figsize=(20, 6))  # 2 rows, 1 column
+fig, axes = plt.subplots(1, 2, figsize=(12, 6))  # 1 row, 2 columns
+fig.set_facecolor('lightgrey')
+plt.suptitle('Test Execution Analysis', fontsize=16)
 
 testcase = [12, 15, 20, 18, 22, 30, 25, 16, 19, 28, 24, 14]
 axes[0].hist(testcase, bins=5, color='skyblue', edgecolor='black')
