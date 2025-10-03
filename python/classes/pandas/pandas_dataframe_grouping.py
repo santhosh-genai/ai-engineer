@@ -7,6 +7,8 @@ data = {'TestCase': ['TC1', 'TC2', 'TC3', 'TC4', 'TC5', 'TC6'],
         'ExecutionTime': [10, 15, 20, 25, 30, 35]}
 df = pd.DataFrame(data)
 
+df.to_csv('testcases.csv', index=True)
+
 print("Original DataFrame:")
 print(df)
 groupstatusdf = df.groupby('Status')['TestCase'].count()

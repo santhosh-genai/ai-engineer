@@ -1,0 +1,7 @@
+,TestCase,Module,Status,ExecutionTime
+0,TC1,Login,Pass,10
+1,TC2,Login,Fail,15
+2,TC3,Payment,Pass,20
+3,TC4,Payment,Pass,25
+4,TC5,Reports,Fail,30
+5,TC6,Reports,Pass,35
