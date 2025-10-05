@@ -1,0 +1,6 @@
+TestCase,Module,Status,Duration
+TC1,Login,Passed,12
+TC2,NaN,Failed,NaN
+TC3,Payment,Failed,20
+TC4,Payment,Passed,18
+TC5,Reports,NaN,25
