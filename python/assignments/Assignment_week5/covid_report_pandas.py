@@ -84,7 +84,7 @@ class CovidReport(Dataset):
         return self.data[self.data['Recovered'] == 0]['Country/Region']
 
 if __name__ == "__main__":
-    report = CovidReport('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week4/country_wise_latest.csv')
+    report = CovidReport('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week5/country_wise_latest.csv')
     print("COVID-19 Cases Summary by Region:")
     print(report.summarize_cases_by_region())
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     print(report.region_with_highest_cases())
 
     print("\nSaving sorted data to 'sorted_covid_data.csv'...")
-    sorted_data = report.save_sorted_data('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week4/sorted_covid_data.csv')
+    sorted_data = report.save_sorted_data('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week5/sorted_covid_data.csv')
     print("sorted_data:\n", sorted_data)
 
     print("\nTop 5 Countries by Confirmed Cases:")
