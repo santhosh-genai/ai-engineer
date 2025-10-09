@@ -43,13 +43,13 @@ class CovidReport(Dataset):
 
     # Top 5 Countries by Case Count
     def top_5_countries_by_case_count(self):
-        return self.data.sort_values('Confirmed', ascending=False).head(5)[['Country/Region', 'Confirmed']]
+        return self.data.sort_values('Confirmed', ascending=False).head(5)[['Country/Region', 'Confirmed', 'Deaths', 'Recovered']]
 
     # Region with Lowest Death Count
     def region_with_lowest_death_count_cases(self):
         region = self.data.groupby('WHO Region')['Deaths'].sum().idxmin()
         return region
-    
+        
     # India Case Summary
     def india_case_summary(self):
         return self.data[self.data['Country/Region'] == 'India'].to_string(index=False)
