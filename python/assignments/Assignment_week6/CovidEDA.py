@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 class CovidEDA:
     def __init__(self, file_path):
@@ -32,7 +33,7 @@ class CovidEDA:
         # Determine lower and upper bounds for outliers
         # Identify outliers
         # Remove outliers and create a cleaned dataset
-        
+
         # Q1 = data['Total Amount'].quantile(0.25)
         # Q3 = data['Total Amount'].quantile(0.75)
         # IQR = Q3 - Q1
@@ -71,8 +72,19 @@ class CovidEDA:
         print(cleaned_data)
         cleaned_data.to_csv('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week6/Cleaned_CovidDataset.csv', index=False)
 
+        # Normalization using Standard Scaler
+            # Apply StandardScaler from sklearn.preprocessing to normalize the
+            # Confirmed and New Cases.
+            # Display the scaled (normalized) output as a new DataFrame.
+    def normalization_scalar_standardization(self, data):
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(data)
+        scaled_df = pd.DataFrame(scaled_data, columns=data.columns) 
+        print("\nScaled Data:\n", scaled_df)
+        
 
 report = CovidEDA('c:/Users/2276038/Desktop/Learning/python/assignments/Assignment_week6/country_wise_latest.csv')
 data = report._load_data()
 report.compute_statistical_measures(data)
 report.outlier_detection(data)
+report.normalization_scalar_standardization(data)
