@@ -1,23 +1,24 @@
-import pandas as pd
 import numpy as np
-from dataset import DatasetLoader
+from dataset_rw import DatasetLoader
 
 class CleanedData(DatasetLoader):
     def __init__(self, file_path):
         super().__init__(file_path)
+        
 
     # Fill missing values with mean
     def fill_missing_values(self):
         try:
             data = self.get_data()
             data_cleaned = data.copy()
-
-            for col in data_cleaned.select_dtypes(include=[np.number]).columns:
+            numeric_columns = data_cleaned.select_dtypes(include=[np.number]).columns
+            for col in numeric_columns:
                 mean = data_cleaned[col].mean()
-                data_cleaned[col].fillna(mean, inplace=True)
+                data_cleaned[col] = data_cleaned[col].fillna(mean)
 
         except Exception as e:
             print("Error filling missing values:", e)
+
         return data_cleaned
 
     # Remove outliers using IQR method
@@ -36,21 +37,5 @@ class CleanedData(DatasetLoader):
 
         except Exception as e:
             print("Error removing outliers:", e)
+
         return data_outliers_removed
-
-if __name__ == "__main__":    
-    read_file_path = 'c:/Users/2276038/Desktop/Learning/python/project/test_execution_analytics_linear/qa_regression_raw_dataset.csv'
-    write_file_path = 'c:/Users/2276038/Desktop/Learning/python/project/test_execution_analytics_linear/qa_regression_cleaned_dataset.csv'
-    cleaner = CleanedData(read_file_path)
-    data = cleaner.get_data()
-    print("Loaded data successfully.\n")
-
-    cleaned_data = cleaner.fill_missing_values()
-    print("Completed filling missing values.\n")
-
-    columns = ['Test_Case_Count', 'Code_Churn', 'Execution_Time_Previous']
-    cleaned_data = cleaner.remove_outliers(cleaned_data, columns)
-    print("Completed removing outliers.\n")
-
-    cleaner.set_data(cleaned_data, write_file_path)
-    print("Cleaned data saved successfully.\n")
