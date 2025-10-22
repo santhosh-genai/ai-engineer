@@ -84,7 +84,8 @@ class DataScaler(CleanedData):
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Linear Regression Model", layout="wide")
-st.title("Test Execution and Defect Count Prediction")
+# Main title with icon and themed color
+st.markdown("<h1 style='font-size:30px;color:#0f4c81;margin:0;'>📊 Test Execution and Defect Count Prediction</h1>", unsafe_allow_html=True)
 
 # Sidebar: data source
 st.sidebar.header("Data source")
@@ -106,7 +107,8 @@ left, middle, right = st.columns([1.2, 1, 1.2])
 
 # Left: Data preview and cleaning options
 with left:
-    st.header("Data preview & cleaning")
+    # header: 20px and themed color
+    st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:0;'>Data preview & cleaning</h3>", unsafe_allow_html=True)
     if df_initial is not None:
         loader = DatasetLoader(dataframe=df_initial)
         df = loader.get_data()
@@ -114,7 +116,8 @@ with left:
         df = None
 
     if df is not None:
-        st.subheader("Raw / Input sample (first 10 rows)")
+        # smaller subheader for raw/input sample
+        st.markdown("<h4 style='font-size:14px;margin:4px 0 6px 0;'>Raw / Input sample (first 10 rows)</h4>", unsafe_allow_html=True)
         st.dataframe(df.head(10))
 
         # Missing value options
@@ -138,7 +141,8 @@ with left:
                 cleaned = cd.remove_outliers(cleaned, outlier_columns)
 
             st.success("Cleaning completed.")
-            st.subheader("Cleaned data preview (first 10 rows)")
+            # smaller subheader for cleaned data preview
+            st.markdown("<h4 style='font-size:14px;margin:4px 0 6px 0;'>Cleaned data preview (first 10 rows)</h4>", unsafe_allow_html=True)
             st.dataframe(cleaned.head(10))
 
             # Allow saving cleaned CSV to session state
@@ -154,11 +158,13 @@ with left:
 
 # Middle: scaling & model training
 with middle:
-    st.header("Scaling & Model Training")
+    # header: 20px and themed color
+    st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:0;'>Scaling & Model Training</h3>", unsafe_allow_html=True)
     cleaned_df = st.session_state.get("cleaned_df", None)
 
     if cleaned_df is not None:
-        st.subheader("Scaling")
+        # smaller subheader for scaling section
+        st.markdown("<h4 style='font-size:14px;margin:4px 0 6px 0;'>Scaling</h4>", unsafe_allow_html=True)
         numeric_cols = list(cleaned_df.select_dtypes(include=[np.number]).columns)
         chosen_cols = st.multiselect("Columns to scale (numeric)", numeric_cols, default=numeric_cols)
         scale_button = st.button("Scale selected columns")
@@ -176,7 +182,8 @@ with middle:
         st.info("Please run cleaning first.")
 
     st.markdown("---")
-    st.subheader("Train Linear Models")
+    # training section header: 20px and themed color
+    st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:4px 0 8px 0;'>Train Linear Models</h3>", unsafe_allow_html=True)
 
     # Model feature/target selection
     st.markdown("**Select features & targets**")
@@ -287,14 +294,17 @@ with middle:
 
 # Right: evaluation + plots + downloads
 with right:
-    st.header("Evaluation & Downloads")
+    # header: 20px and themed color
+    st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:0;'>Evaluation & Downloads</h3>", unsafe_allow_html=True)
     eval_info = st.session_state.get("last_eval", None)
     if eval_info:
-        st.subheader("Metrics")
+        # Metrics header: match Scaling style (h3)
+        st.markdown("<h3 style='font-size:18px;margin:0;'>Metrics</h3>", unsafe_allow_html=True)
         st.write(f"Execution Time — MSE: {eval_info['mse_time']:.4f}, R²: {eval_info['r2_time']:.4f}")
         st.write(f"Defect Count — MSE: {eval_info['mse_def']:.4f}, R²: {eval_info['r2_def']:.4f}")
 
-        st.subheader("Prediction plots")
+        # Prediction plots header: match Train Linear Models style
+        st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:0;'>Prediction plots</h3>", unsafe_allow_html=True)
         fig, axes = plt.subplots(1, 2, figsize=(10, 4))
         axes[0].scatter(eval_info["y_test_time"], eval_info["y_pred_time"])
         axes[0].plot(eval_info["y_test_time"], eval_info["y_test_time"], linestyle="--")
@@ -310,7 +320,8 @@ with right:
 
         st.pyplot(fig)
 
-        st.subheader("Download trained models")
+        # Download models header: match Train Linear Models style
+        st.markdown("<h3 style='font-size:20px;color:#0f4c81;margin:0;'>Download Models</h3>", unsafe_allow_html=True)
         models = st.session_state.get("models")
         if models:
             # time model
