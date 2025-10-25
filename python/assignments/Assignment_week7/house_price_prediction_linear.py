@@ -52,3 +52,6 @@ plt.legend()
 plt.grid()
 plt.show()
 
+sq_ft = int(input("Enter the square footage of the house to predict its price: "))
+ypred = model.predict([[sq_ft]])
+print("Predicted House Price for", sq_ft, "sq ft:", ypred)
