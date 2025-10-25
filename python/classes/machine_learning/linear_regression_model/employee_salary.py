@@ -12,6 +12,13 @@ data = pd.read_csv('c:/Users/2276038/Desktop/Learning/python/classes/machine_lea
 x = data[['YearsExperience']] # Input feature - Independent variable (input)
 y = data['Salary'] # Target variable - Dependent variable (output)
 
+# Split the dataset into training and testing sets 
+# 80% training data and 20% testing data
+# x_train: training data for YearsExperience
+# x_test: testing data for YearsExperience
+# y_train: training data for Salary
+# y_test: testing data for Salary
+# x,y → train_test_split → x_train, x_test, y_train, y_test
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=20)
 
 print("x_train:\n", x_train) # Training data (80% of the dataset - Experience))
