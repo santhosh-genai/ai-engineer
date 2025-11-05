@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { generateTests } from './api'
-import { GenerateRequest, GenerateResponse, TestCase } from './types'
+import { generateTests, connectJira, fetchJiraStories, fetchJiraStory } from './api'
+import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary, JiraStoryDetail } from './types'
 
 function App() {
   const [formData, setFormData] = useState<GenerateRequest>({
@@ -13,6 +13,17 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedTestCases, setExpandedTestCases] = useState<Set<string>>(new Set())
+
+  // Jira-related state
+  const [jiraBaseUrl, setJiraBaseUrl] = useState<string>('')
+  const [jiraEmail, setJiraEmail] = useState<string>('')
+  const [jiraApiToken, setJiraApiToken] = useState<string>('')
+  const [jiraProject, setJiraProject] = useState<string>('')
+  const [isJiraConnected, setIsJiraConnected] = useState<boolean>(false)
+  const [jiraIssues, setJiraIssues] = useState<JiraIssueSummary[]>([])
+  const [selectedIssueKey, setSelectedIssueKey] = useState<string>('')
+  const [isFetchingStories, setIsFetchingStories] = useState<boolean>(false)
+  const [isFetchingStory, setIsFetchingStory] = useState<boolean>(false)
 
   const toggleTestCaseExpansion = (testCaseId: string) => {
     const newExpanded = new Set(expandedTestCases)
@@ -46,6 +57,70 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to generate tests')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleJiraConnect = async () => {
+    setError(null)
+    if (!jiraBaseUrl || !jiraEmail || !jiraApiToken) {
+      setError('Jira Base URL, Email and API Token are required to connect')
+      return
+    }
+    setIsFetchingStories(true)
+    try {
+      await connectJira({ baseUrl: jiraBaseUrl, email: jiraEmail, apiToken: jiraApiToken })
+      setIsJiraConnected(true)
+      // Optionally fetch stories for a provided project
+      if (jiraProject) {
+        const data = await fetchJiraStories({ baseUrl: jiraBaseUrl, email: jiraEmail, apiToken: jiraApiToken, project: jiraProject })
+        setJiraIssues(data.issues || [])
+      }
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Failed to connect to Jira')
+      setIsJiraConnected(false)
+    } finally {
+      setIsFetchingStories(false)
+    }
+  }
+
+  const handleLoadStories = async () => {
+    setError(null)
+    if (!jiraProject) {
+      setError('Please enter a project key to load stories')
+      return
+    }
+    setIsFetchingStories(true)
+    try {
+      const data = await fetchJiraStories({ baseUrl: jiraBaseUrl, email: jiraEmail, apiToken: jiraApiToken, project: jiraProject })
+      setJiraIssues(data.issues || [])
+      if ((data.issues || []).length > 0) setSelectedIssueKey(data.issues[0].key)
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch stories')
+    } finally {
+      setIsFetchingStories(false)
+    }
+  }
+
+  const handleFetchStory = async () => {
+    setError(null)
+    if (!selectedIssueKey) {
+      setError('Please select a story to fetch')
+      return
+    }
+    setIsFetchingStory(true)
+    try {
+      const data: JiraStoryDetail = await fetchJiraStory({ baseUrl: jiraBaseUrl, email: jiraEmail, apiToken: jiraApiToken, issueIdOrKey: selectedIssueKey })
+      // Populate the existing form fields
+      setFormData(prev => ({
+        ...prev,
+        storyTitle: data.title || prev.storyTitle,
+        description: data.description || prev.description || '',
+        acceptanceCriteria: data.acceptanceCriteria || prev.acceptanceCriteria || ''
+      }))
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch story details')
+    } finally {
+      setIsFetchingStory(false)
     }
   }
 
@@ -342,6 +417,34 @@ function App() {
         </div>
         
         <form onSubmit={handleSubmit} className="form-container">
+          <div className="form-group">
+            <label className="form-label">Connect to Jira</label>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+              <input className="form-input" placeholder="Jira Base URL (e.g. https://your-domain.atlassian.net)" value={jiraBaseUrl} onChange={e => setJiraBaseUrl(e.target.value)} />
+              <input className="form-input" placeholder="User Email" value={jiraEmail} onChange={e => setJiraEmail(e.target.value)} />
+              <input className="form-input" placeholder="API Token" value={jiraApiToken} onChange={e => setJiraApiToken(e.target.value)} />
+              <input className="form-input" placeholder="Project Key (optional)" value={jiraProject} onChange={e => setJiraProject(e.target.value)} />
+            </div>
+            <div style={{marginTop: '12px', display: 'flex', gap: '8px'}}>
+              <button type="button" className="submit-btn" onClick={handleJiraConnect} disabled={isFetchingStories}>{isFetchingStories ? 'Connecting...' : 'Connect to Jira'}</button>
+              <button type="button" className="submit-btn" onClick={handleLoadStories} disabled={isFetchingStories || !jiraBaseUrl || !jiraEmail || !jiraApiToken || !jiraProject}>{isFetchingStories ? 'Loading...' : 'Load Stories'}</button>
+            </div>
+          </div>
+
+          {isJiraConnected && (
+            <div className="form-group">
+              <label className="form-label">Select Story</label>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                <select className="form-input" value={selectedIssueKey} onChange={e => setSelectedIssueKey(e.target.value)} style={{flex: 1}}>
+                  <option value="">-- Select a story --</option>
+                  {jiraIssues.map(issue => (
+                    <option key={issue.key} value={issue.key}>{issue.key} — {issue.title}</option>
+                  ))}
+                </select>
+                <button type="button" className="submit-btn" onClick={handleFetchStory} disabled={isFetchingStory || !selectedIssueKey}>{isFetchingStory ? 'Fetching...' : 'Fetch'}</button>
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label htmlFor="storyTitle" className="form-label">
               Story Title *

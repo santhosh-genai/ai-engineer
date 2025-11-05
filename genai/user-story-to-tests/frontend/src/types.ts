@@ -20,3 +20,17 @@ export interface GenerateResponse {
   promptTokens: number
   completionTokens: number
 }
+
+export interface JiraIssueSummary {
+  id: string
+  key: string
+  title: string
+}
+
+export interface JiraStoryDetail {
+  key: string
+  id: string
+  title: string
+  description?: string
+  acceptanceCriteria?: string
+}

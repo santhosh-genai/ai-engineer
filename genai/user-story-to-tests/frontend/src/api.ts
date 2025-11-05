@@ -24,3 +24,42 @@ export async function generateTests(request: GenerateRequest): Promise<GenerateR
     throw error instanceof Error ? error : new Error('Unknown error occurred')
   }
 }
+
+export async function connectJira(body: { baseUrl: string; email: string; apiToken: string }) {
+  const resp = await fetch(`${API_BASE_URL}/jira/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP error! status: ${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function fetchJiraStories(body: { baseUrl: string; email: string; apiToken: string; project: string }) {
+  const resp = await fetch(`${API_BASE_URL}/jira/stories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP error! status: ${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function fetchJiraStory(body: { baseUrl: string; email: string; apiToken: string; issueIdOrKey: string }) {
+  const resp = await fetch(`${API_BASE_URL}/jira/story`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP error! status: ${resp.status}`)
+  }
+  return resp.json()
+}
