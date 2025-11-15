@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { generateTests, connectJira, fetchJiraStories, fetchJiraStory } from './api'
 import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary, JiraStoryDetail } from './types'
 
@@ -24,6 +24,45 @@ function App() {
   const [selectedIssueKey, setSelectedIssueKey] = useState<string>('')
   const [isFetchingStories, setIsFetchingStories] = useState<boolean>(false)
   const [isFetchingStory, setIsFetchingStory] = useState<boolean>(false)
+
+  // Auto-populate Jira fields and auto-connect/fetch stories if env vars present
+  useEffect(() => {
+    try {
+      const base = (import.meta.env.VITE_JIRA_BASE_URL as string) || ''
+      const email = (import.meta.env.VITE_JIRA_EMAIL as string) || ''
+      const token = (import.meta.env.VITE_JIRA_API_TOKEN as string) || ''
+      const project = (import.meta.env.VITE_JIRA_PROJECT as string) || ''
+
+      if (base) setJiraBaseUrl(base)
+      if (email) setJiraEmail(email)
+      if (token) setJiraApiToken(token)
+      if (project) setJiraProject(project)
+
+      const shouldAutoConnect = Boolean(base && email && token)
+      if (!shouldAutoConnect) return
+
+      ;(async () => {
+        setIsFetchingStories(true)
+        setError(null)
+        try {
+          await connectJira({ baseUrl: base, email, apiToken: token })
+          setIsJiraConnected(true)
+          if (project) {
+            const data = await fetchJiraStories({ baseUrl: base, email, apiToken: token, project })
+            setJiraIssues(data.issues || [])
+            if ((data.issues || []).length > 0) setSelectedIssueKey(data.issues[0].key)
+          }
+        } catch (err: any) {
+          setError(err instanceof Error ? err.message : 'Failed to auto-connect to Jira')
+          setIsJiraConnected(false)
+        } finally {
+          setIsFetchingStories(false)
+        }
+      })()
+    } catch (e) {
+      // ignore in environments that don't support import.meta
+    }
+  }, [])
 
   const toggleTestCaseExpansion = (testCaseId: string) => {
     const newExpanded = new Set(expandedTestCases)
