@@ -1,0 +1,38 @@
+Goals : New user story 
+
+        - Find the related user stories
+        - Find the related testcases (relationship : user stories --> testcases)
+        - Generate new testcases 
+
+Steps to implement
+
+1) extract the zip
+2) open the vscode and add the folder to your workspace
+3) open the terminal --> npm install
+4) open the .env and read the inputs and create mongo (based on that)
+    4.1) create db (db_stories_tests) and collection (test_cases)
+    4.2) create another collection (user_stories)
+    4.3) create testcase vector index (vector_index_test_cases)
+         // refer src/config/testcases-vector-index.json
+         // wait until it becomes Ready state
+    4.4) create testcase bm25 index (bm25_search)
+         // refer src/config/testcases-bm25-index.json
+         // wait until it becomes Ready state
+    4.5) create user stories vector index (vector_index_user_story)
+         // refer src/config/user-stories-vector-index.json
+         // wait until it becomes Ready state
+
+5) Update the .env with your credentials and details
+    - mongo URI, mistral API and groq API
+6) Ingestion Pipeline (6000+ docs)
+    6.1 ) open the terminal and run the command :
+          node .src/scripts/embeddings/create-embeddings-batch-mistral.js
+    6.2 ) Look at the terminal for errors (if none - go to mongo)
+    6.3 ) Look at the mongo db for the data insertion
+    6.4 ) Wait until all ingestion is done
+    6.5 ) Try using web app (when you have time // not needed // skip for now)
+    6.6 ) Push stories to mongo
+          node .src/scripts/embeddings/create-userstories-embeddings-batch-mistral.js
+7) Start the server (web - client and backend - server)
+    7.1) npm run dev
+    7.2) look at the web app and confirm the vector, bm25 and hybrid
