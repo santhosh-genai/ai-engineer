@@ -36,3 +36,5 @@ Steps to implement
 7) Start the server (web - client and backend - server)
     7.1) npm run dev
     7.2) look at the web app and confirm the vector, bm25 and hybrid
+
+    end
