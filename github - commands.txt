@@ -13,12 +13,15 @@ Initialize Git once here (root for all subfolders):
 git init
 git branch -M main
 git remote add origin https://github.com/santhosh-genai/ai-engineer.git
+git push --force origin main
+
 
 
 Add just the python folder first:
 git add python
 git commit -m "Added python subfolder"
 git push -u origin main
+git push --force origin main
 
 
 Later, when you create java or nodejs folders, just do:
@@ -26,6 +29,10 @@ git add java nodejs
 git commit -m "Added java and nodejs subfolders"
 git push
 
+
+    git rm -r --cached node_modules
+    git rm --cached .env
+    git commit -m "Remove tracked node_modules and .env"
 
 If you are already inside python folder:
 Remove-Item -Recurse -Force .git
