@@ -15,6 +15,12 @@ git branch -M main
 git remote add origin https://github.com/santhosh-genai/ai-engineer.git
 git push --force origin main
 
+Final quick command (if repo is new)
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git push -u origin main
+
 
 
 Add just the python folder first:
@@ -46,3 +52,6 @@ git push -u origin main
 
 Overwrite GitHub with your local repo
 git push -u origin main --force
+
+
+git remote set-url origin https://github.com/santhosh-genai/deepeval.git
