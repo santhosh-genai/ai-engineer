@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { generateTests, connectJira, fetchJiraStories, fetchJiraStory } from './api'
+import { generateTests, connectJira, fetchJiraStories, fetchJiraStory, pushTestCaseToJira, pushTestCaseToJiraViaMCP } from './api'
 import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary, JiraStoryDetail } from './types'
 
 function App() {
@@ -24,6 +24,8 @@ function App() {
   const [selectedIssueKey, setSelectedIssueKey] = useState<string>('')
   const [isFetchingStories, setIsFetchingStories] = useState<boolean>(false)
   const [isFetchingStory, setIsFetchingStory] = useState<boolean>(false)
+  const [isPushingToJira, setIsPushingToJira] = useState<boolean>(false)
+  const [pushedTestCases, setPushedTestCases] = useState<Set<string>>(new Set())
 
   // Auto-populate Jira fields and auto-connect/fetch stories if env vars present
   useEffect(() => {
@@ -81,8 +83,8 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.storyTitle.trim() || !formData.acceptanceCriteria.trim()) {
-      setError('Story Title and Acceptance Criteria are required')
+    if (!formData.storyTitle.trim()) {
+      setError('Story Title is required')
       return
     }
 
@@ -160,6 +162,107 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to fetch story details')
     } finally {
       setIsFetchingStory(false)
+    }
+  }
+
+  const handlePushTestCaseToJira = async (testCase: TestCase) => {
+    if (!selectedIssueKey) {
+      setError('Please select a parent story to push test cases to')
+      return
+    }
+
+    if (!jiraBaseUrl || !jiraEmail || !jiraApiToken) {
+      setError('Jira connection details are missing. Please connect to Jira first.')
+      return
+    }
+
+    setError(null)
+    setIsPushingToJira(true)
+    try {
+      // Extract project key from selected issue key (format: PROJECT-123)
+      const projectKey = selectedIssueKey.split('-')[0]
+      
+      await pushTestCaseToJiraViaMCP({
+        baseUrl: jiraBaseUrl,
+        email: jiraEmail,
+        apiToken: jiraApiToken,
+        projectKey: projectKey,
+        parentIssueKey: selectedIssueKey,
+        testCaseId: testCase.id,
+        testCaseTitle: testCase.title,
+        testCaseSteps: testCase.steps,
+        testData: testCase.testData,
+        expectedResult: testCase.expectedResult,
+        category: testCase.category
+      })
+
+      // Mark as pushed
+      const newPushed = new Set(pushedTestCases)
+      newPushed.add(testCase.id)
+      setPushedTestCases(newPushed)
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Failed to push test case to Jira')
+    } finally {
+      setIsPushingToJira(false)
+    }
+  }
+
+  const handlePushAllTestCasesToJira = async () => {
+    if (!results || results.cases.length === 0) {
+      setError('No test cases to push')
+      return
+    }
+
+    if (!selectedIssueKey) {
+      setError('Please select a parent story to push test cases to')
+      return
+    }
+
+    if (!jiraBaseUrl || !jiraEmail || !jiraApiToken) {
+      setError('Jira connection details are missing. Please connect to Jira first.')
+      return
+    }
+
+    setError(null)
+    setIsPushingToJira(true)
+    
+    let successCount = 0
+    let failureCount = 0
+
+    for (const testCase of results.cases) {
+      if (!pushedTestCases.has(testCase.id)) {
+        try {
+          const projectKey = selectedIssueKey.split('-')[0]
+          await pushTestCaseToJiraViaMCP({
+            baseUrl: jiraBaseUrl,
+            email: jiraEmail,
+            apiToken: jiraApiToken,
+            projectKey: projectKey,
+            parentIssueKey: selectedIssueKey,
+            testCaseId: testCase.id,
+            testCaseTitle: testCase.title,
+            testCaseSteps: testCase.steps,
+            testData: testCase.testData,
+            expectedResult: testCase.expectedResult,
+            category: testCase.category
+          })
+          
+          const newPushed = new Set(pushedTestCases)
+          newPushed.add(testCase.id)
+          setPushedTestCases(newPushed)
+          successCount++
+        } catch (err: any) {
+          failureCount++
+          console.error(`Failed to push ${testCase.id}:`, err)
+        }
+      }
+    }
+
+    setIsPushingToJira(false)
+    if (failureCount > 0) {
+      setError(`Pushed ${successCount} test case(s), ${failureCount} failed`)
+    } else if (successCount > 0) {
+      setError(null)
     }
   }
 
@@ -306,6 +409,10 @@ function App() {
         }
         
         .results-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 20px;
           margin-bottom: 20px;
           padding-bottom: 15px;
           border-bottom: 2px solid #e1e8ed;
@@ -460,8 +567,8 @@ function App() {
             <label className="form-label">Connect to Jira</label>
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
               <input className="form-input" placeholder="Jira Base URL (e.g. https://your-domain.atlassian.net)" value={jiraBaseUrl} onChange={e => setJiraBaseUrl(e.target.value)} />
-              <input className="form-input" placeholder="User Email" value={jiraEmail} onChange={e => setJiraEmail(e.target.value)} />
-              <input className="form-input" placeholder="API Token" value={jiraApiToken} onChange={e => setJiraApiToken(e.target.value)} />
+              <input className="form-input" type="password" placeholder="User Email" value={jiraEmail} onChange={e => setJiraEmail(e.target.value)} />
+              <input className="form-input" type="password" placeholder="API Token" value={jiraApiToken} onChange={e => setJiraApiToken(e.target.value)} />
               <input className="form-input" placeholder="Project Key (optional)" value={jiraProject} onChange={e => setJiraProject(e.target.value)} />
             </div>
             <div style={{marginTop: '12px', display: 'flex', gap: '8px'}}>
@@ -514,15 +621,14 @@ function App() {
           
           <div className="form-group">
             <label htmlFor="acceptanceCriteria" className="form-label">
-              Acceptance Criteria *
+              Acceptance Criteria
             </label>
             <textarea
               id="acceptanceCriteria"
               className="form-textarea"
               value={formData.acceptanceCriteria}
               onChange={(e) => handleInputChange('acceptanceCriteria', e.target.value)}
-              placeholder="Enter the acceptance criteria..."
-              required
+              placeholder="Enter the acceptance criteria (optional)..."
             />
           </div>
           
@@ -563,12 +669,23 @@ function App() {
         {results && (
           <div className="results-container">
             <div className="results-header">
-              <h2 className="results-title">Generated Test Cases</h2>
-              <div className="results-meta">
-                {results.cases.length} test case(s) generated
-                {results.model && ` • Model: ${results.model}`}
-                {results.promptTokens > 0 && ` • Tokens: ${results.promptTokens + results.completionTokens}`}
+              <div>
+                <h2 className="results-title">Generated Test Cases</h2>
+                <div className="results-meta">
+                  {results.cases.length} test case(s) generated
+                  {results.model && ` • Model: ${results.model}`}
+                  {results.promptTokens > 0 && ` • Tokens: ${results.promptTokens + results.completionTokens}`}
+                </div>
               </div>
+              <button 
+                type="button"
+                className="submit-btn" 
+                onClick={handlePushAllTestCasesToJira}
+                disabled={isPushingToJira || !isJiraConnected || !selectedIssueKey || pushedTestCases.size === results.cases.length}
+                style={{height: 'fit-content'}}
+              >
+                {pushedTestCases.size === results.cases.length ? 'All Pushed ✓' : (isPushingToJira ? 'Uploading...' : 'Push All to Jira')}
+              </button>
             </div>
             
             <div className="table-container">
@@ -608,7 +725,18 @@ function App() {
                         <tr key={`${testCase.id}-details`}>
                           <td colSpan={4}>
                             <div className="expanded-details">
-                              <h4 style={{marginBottom: '15px', color: '#2c3e50'}}>Test Steps for {testCase.id}</h4>
+                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                                <h4 style={{color: '#2c3e50'}}>Test Steps for {testCase.id}</h4>
+                                <button 
+                                  type="button"
+                                  className="submit-btn" 
+                                  onClick={() => handlePushTestCaseToJira(testCase)}
+                                  disabled={isPushingToJira || !isJiraConnected || !selectedIssueKey || pushedTestCases.has(testCase.id)}
+                                  style={{padding: '8px 16px', fontSize: '14px'}}
+                                >
+                                  {pushedTestCases.has(testCase.id) ? '✓ Pushed' : (isPushingToJira ? 'Pushing...' :'Upload to Jira')}
+                                </button>
+                              </div>
                               <div className="step-labels">
                                 <div>Step ID</div>
                                 <div>Step Description</div>

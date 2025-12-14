@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const GenerateRequestSchema = z.object({
   storyTitle: z.string().min(1, 'Story title is required'),
-  acceptanceCriteria: z.string().min(1, 'Acceptance criteria is required'),
+  acceptanceCriteria: z.string().optional(),
   description: z.string().optional(),
   additionalInfo: z.string().optional()
 })

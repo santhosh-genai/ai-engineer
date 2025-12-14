@@ -1,5 +1,6 @@
 import express from 'express'
 import fetch from 'node-fetch'
+import { formatTestCaseDescription } from '../utils/jiraMcp'
 
 export const jiraRouter = express.Router()
 
@@ -15,6 +16,17 @@ type JiraStoriesBody = JiraConnectBody & {
 
 type JiraStoryBody = JiraConnectBody & {
   issueIdOrKey: string
+}
+
+type PushTestCaseBody = JiraConnectBody & {
+  projectKey: string
+  parentIssueKey: string
+  testCaseId: string
+  testCaseTitle: string
+  testCaseSteps: string[]
+  testData?: string
+  expectedResult: string
+  category: string
 }
 
 function buildAuthHeader(email: string, apiToken: string) {
@@ -202,5 +214,317 @@ function extractAcceptanceCriteria(description: string): string {
 
   return ''
 }
+
+// Push test case as a subtask to a parent story
+jiraRouter.post('/push-test-case', async (req, res) => {
+  try {
+    const body = req.body as PushTestCaseBody
+    if (!body?.baseUrl || !body?.email || !body?.apiToken || !body?.projectKey || !body?.parentIssueKey || !body?.testCaseTitle) {
+      console.error('Missing required fields:', {
+        baseUrl: !!body?.baseUrl,
+        email: !!body?.email,
+        apiToken: !!body?.apiToken,
+        projectKey: !!body?.projectKey,
+        parentIssueKey: !!body?.parentIssueKey,
+        testCaseTitle: !!body?.testCaseTitle
+      })
+      res.status(400).json({ error: 'Missing required fields' })
+      return
+    }
+
+    const auth = buildAuthHeader(body.email, body.apiToken)
+    // Try v3 first, fall back to v2 if needed
+    const url = `${body.baseUrl.replace(/\/$/, '')}/rest/api/3/issues`
+    const urlV2 = `${body.baseUrl.replace(/\/$/, '')}/rest/api/2/issue`
+
+    console.log('Push test case request:', {
+      url,
+      urlV2,
+      projectKey: body.projectKey,
+      parentIssueKey: body.parentIssueKey,
+      testCaseId: body.testCaseId,
+      testCaseTitle: body.testCaseTitle
+    })
+
+    // Format steps for the description
+    const stepsDescription = body.testCaseSteps
+      .map((step, index) => `Step ${index + 1}: ${step}`)
+      .join('\n')
+
+    // Create description in Atlassian Document Format (ADF) for v3
+    const description = {
+      version: 1,
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Test Steps' }]
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: stepsDescription }]
+        },
+        ...(body.testData ? [{
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Test Data' }]
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: body.testData }]
+        }] : []),
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Expected Result' }]
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: body.expectedResult }]
+        }
+      ]
+    }
+
+    // Plain text description for v2 and for reference
+    const plainDescription = body.testCaseSteps
+      .map((step, index) => `Step ${index + 1}: ${step}`)
+      .join('\n')
+      + (body.testData ? `\n\nTest Data:\n${body.testData}` : '')
+      + `\n\nExpected Result:\n${body.expectedResult}`
+
+    const issuePayload = {
+      fields: {
+        project: { key: body.projectKey },
+        issuetype: { name: 'Task' },
+        summary: `[${body.category}] ${body.testCaseTitle}`,
+        description: description,
+        labels: [body.category.toLowerCase(), `test-case-${body.testCaseId}`, `parent-${body.parentIssueKey}`]
+      }
+    }
+
+    console.log('Jira issue payload:', JSON.stringify(issuePayload, null, 2))
+
+    let resp: any
+    let responseText = ''
+    let apiVersion = 'v3'
+
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: auth,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(issuePayload)
+      })
+
+      responseText = await resp.text()
+      console.log('Jira v3 response status:', resp.status, resp.statusText)
+      console.log('Jira v3 response body:', responseText)
+
+      // If v3 fails with 404 or 400, try v2
+      if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
+        console.log('V3 API failed, trying V2 API...')
+        apiVersion = 'v2'
+        
+        const v2Payload = {
+          fields: {
+            project: { key: body.projectKey },
+            issuetype: { name: 'Task' },
+            summary: `[${body.category}] ${body.testCaseTitle}`,
+            description: plainDescription,
+            labels: issuePayload.fields.labels
+          }
+        }
+
+        console.log('V2 Payload:', JSON.stringify(v2Payload, null, 2))
+
+        resp = await fetch(urlV2, {
+          method: 'POST',
+          headers: {
+            Authorization: auth,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(v2Payload)
+        })
+
+        responseText = await resp.text()
+        console.log('Jira v2 response status:', resp.status, resp.statusText)
+        console.log('Jira v2 response body:', responseText)
+      }
+    } catch (fetchErr: any) {
+      console.error('Fetch error:', fetchErr)
+      res.status(502).json({ error: 'Failed to reach Jira API', details: fetchErr.message })
+      return
+    }
+
+    if (resp.status === 401 || resp.status === 403) {
+      res.status(401).json({ error: 'Authentication failed. Check email and API token.' })
+      return
+    }
+
+    if (!resp.ok) {
+      res.status(502).json({ 
+        error: `Failed to create Jira issue (${apiVersion}): ${resp.status} ${resp.statusText}`, 
+        details: responseText 
+      })
+      return
+    }
+
+    try {
+      const data: any = JSON.parse(responseText)
+      res.json({ ok: true, issueKey: data.key, issueId: data.id, apiUsed: apiVersion })
+    } catch (parseErr) {
+      console.error('Failed to parse successful Jira response:', parseErr)
+      res.status(502).json({ error: 'Failed to parse Jira response', details: responseText })
+    }
+  } catch (err: any) {
+    console.error('Error in /jira/push-test-case', err)
+    res.status(500).json({ error: err?.message || 'Internal server error' })
+  }
+})
+
+// MCP-based push test case endpoint (uses Jira REST API with credentials from frontend)
+jiraRouter.post('/push-test-case-mcp', async (req, res) => {
+  try {
+    const body = req.body as {
+      baseUrl: string
+      email: string
+      apiToken: string
+      projectKey: string
+      parentIssueKey?: string
+      testCaseId: string
+      testCaseTitle: string
+      testCaseSteps: string[]
+      testData?: string
+      expectedResult: string
+      category?: string
+    }
+
+    if (!body?.baseUrl || !body?.email || !body?.apiToken || !body?.projectKey || !body?.testCaseId || !body?.testCaseTitle) {
+      res.status(400).json({ error: 'Missing required fields' })
+      return
+    }
+
+    const auth = buildAuthHeader(body.email, body.apiToken)
+    const url = `${body.baseUrl.replace(/\/$/, '')}/rest/api/3/issues`
+    const urlV2 = `${body.baseUrl.replace(/\/$/, '')}/rest/api/2/issue`
+
+    const description = formatTestCaseDescription({
+      testCaseId: body.testCaseId,
+      testCaseTitle: body.testCaseTitle,
+      testCaseSteps: body.testCaseSteps || [],
+      testData: body.testData,
+      expectedResult: body.expectedResult || '',
+      category: body.category || 'Functional'
+    })
+
+    // Create description in Atlassian Document Format (ADF) for v3
+    const adfDescription = {
+      version: 1,
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: description }]
+        }
+      ]
+    }
+
+    const issuePayload = {
+      fields: {
+        project: { key: body.projectKey },
+        issuetype: { name: 'Task' },
+        summary: `[${body.testCaseId}] ${body.testCaseTitle}`,
+        description: adfDescription,
+        labels: [body.category?.toLowerCase() || 'test', `test-case-${body.testCaseId}`]
+      }
+    }
+
+    let resp: any
+    let responseText = ''
+    let apiVersion = 'v3'
+
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: auth,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(issuePayload)
+      })
+
+      responseText = await resp.text()
+
+      // If v3 fails with 404 or 400, try v2
+      if (!resp.ok && (resp.status === 404 || resp.status === 400)) {
+        console.log('V3 API failed, trying V2 API...')
+        apiVersion = 'v2'
+        
+        const v2Payload = {
+          fields: {
+            project: { key: body.projectKey },
+            issuetype: { name: 'Task' },
+            summary: `[${body.testCaseId}] ${body.testCaseTitle}`,
+            description: description,
+            labels: issuePayload.fields.labels
+          }
+        }
+
+        resp = await fetch(urlV2, {
+          method: 'POST',
+          headers: {
+            Authorization: auth,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(v2Payload)
+        })
+
+        responseText = await resp.text()
+      }
+    } catch (fetchErr: any) {
+      console.error('Fetch error:', fetchErr)
+      res.status(502).json({ error: 'Failed to reach Jira API', details: fetchErr.message })
+      return
+    }
+
+    if (resp.status === 401 || resp.status === 403) {
+      res.status(401).json({ error: 'Authentication failed. Check email and API token.' })
+      return
+    }
+
+    if (!resp.ok) {
+      res.status(502).json({ 
+        error: `Failed to create Jira issue (${apiVersion}): ${resp.status} ${resp.statusText}`, 
+        details: responseText 
+      })
+      return
+    }
+
+    try {
+      const data: any = JSON.parse(responseText)
+      res.json({ 
+        success: true, 
+        jiraKey: data.key, 
+        jiraId: data.id, 
+        apiUsed: apiVersion,
+        message: `Test case ${body.testCaseId} pushed to Jira successfully`
+      })
+    } catch (parseErr) {
+      console.error('Failed to parse successful Jira response:', parseErr)
+      res.status(502).json({ error: 'Failed to parse Jira response', details: responseText })
+    }
+  } catch (error: any) {
+    console.error('Push test case MCP error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to push test case'
+    res.status(500).json({ error: errorMessage })
+  }
+})
 
 export default jiraRouter

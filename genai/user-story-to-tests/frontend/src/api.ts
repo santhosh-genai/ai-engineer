@@ -63,3 +63,53 @@ export async function fetchJiraStory(body: { baseUrl: string; email: string; api
   }
   return resp.json()
 }
+
+export async function pushTestCaseToJira(body: {
+  baseUrl: string
+  email: string
+  apiToken: string
+  projectKey: string
+  parentIssueKey: string
+  testCaseId: string
+  testCaseTitle: string
+  testCaseSteps: string[]
+  testData?: string
+  expectedResult: string
+  category: string
+}) {
+  const resp = await fetch(`${API_BASE_URL}/jira/push-test-case`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP error! status: ${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function pushTestCaseToJiraViaMCP(body: {
+  baseUrl: string
+  email: string
+  apiToken: string
+  projectKey: string
+  parentIssueKey?: string
+  testCaseId: string
+  testCaseTitle: string
+  testCaseSteps: string[]
+  testData?: string
+  expectedResult: string
+  category?: string
+}) {
+  const resp = await fetch(`${API_BASE_URL}/jira/push-test-case-mcp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP error! status: ${resp.status}`)
+  }
+  return resp.json()
+}
