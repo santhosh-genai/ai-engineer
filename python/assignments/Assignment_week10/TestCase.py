@@ -59,11 +59,9 @@ class TestSuite:
         print(f"Failed Tests: {failed}")
         print(f"Not Executed Tests: {not_executed}")
 
-# Example usage:
+
 if __name__ == "__main__":
     suite = TestSuite("Sample Test Suite")
-#     2 manual test cases
-# o 2 automated test cases
 
     tc1 = TestCase(1, "Login Test", "Authentication", "Not Executed")
     tc2 = AutomatedTestCase(2, "Payment Test", "E-Commerce", "Not Executed", "Cypress")
@@ -73,8 +71,9 @@ if __name__ == "__main__":
     suite.add_test_case(tc1)
     suite.add_test_case(tc2)
     suite.add_test_case(tc3)
+    suite.add_test_case(tc4)
     
     suite.run_all_tests()
-    suite.save_results_to_csv("test_results.csv")
+    suite.save_results_to_csv("C:\\Users\\2276038\\Desktop\\learning\\ai-engineer\\python\\assignments\\Assignment_week10\\test_results.csv")
     suite.summary_report()
         
